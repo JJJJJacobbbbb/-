@@ -30,6 +30,7 @@ marked.setOptions({
 function renderMath(text: string): string {
   let result = text
 
+  // $$...$$ — display math
   result = result.replace(/\$\$([\s\S]+?)\$\$/g, (_, math) => {
     try {
       return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false })
@@ -38,6 +39,25 @@ function renderMath(text: string): string {
     }
   })
 
+  // \[...\] — display math
+  result = result.replace(/\\\[([\s\S]+?)\\\]/g, (_, math) => {
+    try {
+      return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false })
+    } catch {
+      return math
+    }
+  })
+
+  // \(...\) — inline math
+  result = result.replace(/\\\((.+?)\\\)/g, (_, math) => {
+    try {
+      return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false })
+    } catch {
+      return math
+    }
+  })
+
+  // $...$ — inline math
   result = result.replace(/\$([^\n$]+?)\$/g, (_, math) => {
     try {
       return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false })
