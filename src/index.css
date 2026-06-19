@@ -1,0 +1,362 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* 截图覆盖层 */
+.screenshot-overlay {
+  cursor: crosshair;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.screenshot-selection {
+  border: 2px dashed #0ea5e9;
+  background: rgba(14, 165, 233, 0.1);
+}
+
+/* Markdown 渲染样式 */
+.markdown-content {
+  line-height: 1.6;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.markdown-content p {
+  margin-bottom: 0.75em;
+}
+
+.markdown-content code {
+  background: #f3f4f6;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 0.9em;
+}
+
+.markdown-content pre {
+  background: #1f2937;
+  color: #f9fafb;
+  padding: 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 1em;
+}
+
+.markdown-content pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+
+.markdown-content li {
+  margin-bottom: 0.25em;
+}
+
+.markdown-content blockquote {
+  border-left: 4px solid #0ea5e9;
+  padding-left: 1em;
+  margin-left: 0;
+  margin-bottom: 0.75em;
+  color: #6b7280;
+}
+
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1em;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5em 1em;
+  text-align: left;
+}
+
+.markdown-content th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+/* Word 文档渲染样式 */
+.docx-page p {
+  margin-bottom: 0.5em;
+  min-height: 1em;
+}
+
+.docx-page h1,
+.docx-page h2,
+.docx-page h3,
+.docx-page h4,
+.docx-page h5,
+.docx-page h6 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.docx-page h1 { font-size: 1.8em; }
+.docx-page h2 { font-size: 1.5em; }
+.docx-page h3 { font-size: 1.3em; }
+.docx-page h4 { font-size: 1.1em; }
+.docx-page h5 { font-size: 1em; }
+.docx-page h6 { font-size: 0.9em; }
+
+.docx-page table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  table-layout: fixed;
+}
+
+.docx-page th,
+.docx-page td {
+  border: 1px solid #d1d5db;
+  padding: 0.4em 0.8em;
+  text-align: left;
+  vertical-align: top;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.docx-page th {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+.docx-page ul,
+.docx-page ol {
+  margin-left: 1.5em;
+  margin-bottom: 0.5em;
+  padding-left: 1em;
+}
+
+.docx-page ul {
+  list-style-type: disc;
+}
+
+.docx-page ol {
+  list-style-type: decimal;
+}
+
+.docx-page li {
+  margin-bottom: 0.25em;
+}
+
+.docx-page li > ul,
+.docx-page li > ol {
+  margin-top: 0.25em;
+  margin-bottom: 0;
+}
+
+.docx-page blockquote {
+  border-left: 3px solid #9ca3af;
+  padding-left: 1em;
+  color: #6b7280;
+  margin: 0.5em 0;
+}
+
+.docx-page img {
+  max-width: 100%;
+  height: auto;
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+.docx-page a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.docx-page a:hover {
+  color: #1d4ed8;
+}
+
+.docx-page sub,
+.docx-page sup {
+  font-size: 0.75em;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+.docx-page sub { bottom: -0.25em; }
+.docx-page sup { top: -0.5em; }
+
+.docx-page s,
+.docx-page del {
+  text-decoration: line-through;
+}
+
+.docx-page u {
+  text-decoration: underline;
+}
+
+.docx-page mark {
+  background-color: #fef08a;
+  padding: 0.1em 0;
+}
+
+.docx-page hr {
+  border: none;
+  border-top: 1px solid #d1d5db;
+  margin: 1em 0;
+}
+
+.docx-page code {
+  background: #f3f4f6;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 0.9em;
+}
+
+.docx-page pre {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 0.8em;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+
+.docx-page pre code {
+  background: transparent;
+  padding: 0;
+}
+
+/* Word 特殊格式 */
+.docx-page [style*="text-align: center"] {
+  text-align: center;
+}
+
+.docx-page [style*="text-align: right"] {
+  text-align: right;
+}
+
+.docx-page [style*="text-align: justify"] {
+  text-align: justify;
+}
+
+/* 脚注样式 */
+.docx-page .footnote {
+  font-size: 0.8em;
+  color: #6b7280;
+  vertical-align: super;
+}
+
+/* Office 特殊标签 */
+.docx-page o\\:p,
+.docx-page w\\:br {
+  display: inline;
+}
+
+/* 框选模式：禁止文字选择 */
+.selection-mode {
+  user-select: none !important;
+}
+
+.selection-mode * {
+  user-select: none !important;
+}
+
+/* docx-preview 渲染样式 */
+.docx-viewer-container {
+  min-height: 200px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.docx-viewer-container .docx-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.docx-viewer-container .docx-wrapper > section.docx {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin: 0 auto 20px auto;
+  padding: 60px 70px;
+  background: white;
+  border-radius: 2px;
+  /* 限制最大宽度，避免太宽 */
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* 确保 docx-preview 内的表格正常显示 */
+.docx-viewer-container table {
+  border-collapse: collapse;
+  max-width: 100%;
+  overflow: auto;
+  display: block;
+}
+
+.docx-viewer-container table td,
+.docx-viewer-container table th {
+  border: 1px solid #ddd;
+  padding: 6px 10px;
+  word-break: break-word;
+}
+
+/* 确保图片不超出容器 */
+.docx-viewer-container img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 段落间距 */
+.docx-viewer-container p {
+  margin-bottom: 0.5em;
+  line-height: 1.6;
+}
+
+/* 列表样式 */
+.docx-viewer-container ul,
+.docx-viewer-container ol {
+  padding-left: 2em;
+  margin-bottom: 0.5em;
+}

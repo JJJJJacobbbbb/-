@@ -1,0 +1,62 @@
+{
+  "name": "student-assistant",
+  "version": "1.0.0",
+  "description": "学生学习助手 - 悬浮球+文档阅读+AI对话",
+  "main": "dist-electron/main.js",
+  "build": {
+    "appId": "com.wenqu.student-assistant",
+    "productName": "问渠",
+    "directories": {
+      "output": "release"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "问渠"
+    },
+    "win": {
+      "target": ["nsis", "portable"],
+      "artifactName": "${productName} Setup ${version}.exe"
+    },
+    "portable": {
+      "artifactName": "${productName} ${version} Portable.exe"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"tsc -p tsconfig.electron.json --watch\" \"vite\" \"wait-on http://localhost:5173,dist-electron/main.js && electron .\"",
+    "electron:build": "tsc -p tsconfig.electron.json && vite build && electron-builder --win",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json"
+  },
+  "dependencies": {
+    "docx-preview": "^0.3.7",
+    "dompurify": "^3.4.10",
+    "katex": "^0.16.10",
+    "marked": "^12.0.2",
+    "pdfjs-dist": "^4.3.136",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@types/dompurify": "^3.0.5",
+    "@types/katex": "^0.16.7",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^8.2.2",
+    "electron": "^30.0.9",
+    "electron-builder": "^24.13.3",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.4.5",
+    "vite": "^5.3.1",
+    "wait-on": "^7.2.0"
+  }
+}
