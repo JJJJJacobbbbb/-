@@ -356,25 +356,18 @@ export const useAiStore = create<AiState>((set, get) => ({
 数学公式格式（必须严格遵守，违反会导致显示错误）：
 - 行内公式用 \\(...\\) 包裹
 - 独立公式用 \\[...\\] 包裹
-- 每个公式只输出一次，绝不用其他格式重复
-- 绝不用 Unicode 符号（×÷∂∇≈≤≥→↑↓），必须用 LaTeX 命令
-- 绝不用普通括号或 $ 包裹公式
+- 每个公式只输出一次，用 \\(...\\) 或 \\[...\\] 包裹即可，系统会自动渲染为专业数学排版
+- 绝不要把公式再用纯文本、Unicode符号或普通括号重复写一遍
+- 绝不用 Unicode 数学符号（×÷∂∇≈≤≥→↑↓∫），必须用 LaTeX 命令
+- 绝不用 $...$ 格式
 
-以下是一个完整回答的正确格式：
+关键：公式只需要写一次（用 \\(...\\) 或 \\[...\\] 包裹），后面的中文是解释说明，不是公式的另一种写法。
 
-问：简述麦克斯韦方程组
-
-答：麦克斯韦方程组包含四个方程：
-
-\\[\\nabla \\cdot \\boldsymbol{E} = \\frac{\\rho}{\\varepsilon_0}\\]
-
-\\[\\nabla \\cdot \\boldsymbol{B} = 0\\]
-
-\\[\\nabla \\times \\boldsymbol{E} = -\\frac{\\partial \\boldsymbol{B}}{\\partial t}\\]
+示例（注意：公式只出现一次，后面是文字解释，不是公式的重复）：
 
 \\[\\nabla \\times \\boldsymbol{B} = \\mu_0 \\boldsymbol{J} + \\mu_0 \\varepsilon_0 \\frac{\\partial \\boldsymbol{E}}{\\partial t}\\]
 
-其中 \\(\\boldsymbol{E}\\) 是电场强度，\\(\\boldsymbol{B}\\) 是磁感应强度。第四个方程预言了电磁波的存在，其速度为 \\(c = \\frac{1}{\\sqrt{\\mu_0 \\varepsilon_0}} \\approx 3 \\times 10^8 \\text{ m/s}\\)。`
+这是安培-麦克斯韦定律，其中 \\(\\mu_0\\) 是真空磁导率，\\(\\varepsilon_0\\) 是真空介电常数。最后一项 \\(\\mu_0 \\varepsilon_0 \\frac{\\partial \\boldsymbol{E}}{\\partial t}\\) 是位移电流项，预言了电磁波的存在。`
 
       const apiMessages = [{ role: 'system', content: systemPrompt }, ...contextMessages.map((msg) => {
         const msgScreenshots = msg === userMessage ? screenshots : (msg.screenshotData ? [msg.screenshotData] : [])

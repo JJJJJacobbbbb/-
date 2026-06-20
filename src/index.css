@@ -73,6 +73,15 @@ body {
   font-size: 1.05em;
 }
 
+/* 隐藏 KaTeX 的 MathML 和 annotation 辅助元素，只显示渲染后的公式 */
+.markdown-content .katex-mathml {
+  display: none !important;
+}
+
+.markdown-content .katex annotation {
+  display: none !important;
+}
+
 .markdown-content .katex-html {
   white-space: nowrap;
 }
