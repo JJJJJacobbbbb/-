@@ -27,6 +27,42 @@ marked.setOptions({
   breaks: true,
 })
 
+// Unicode 数学符号（希腊字母 + 常用运算符）
+const MATH_SYMBOL_RE = /[α-ωΑ-Ω×÷∂∇≈≤≥≥→↑↓∫∮∑∏√∞±≤≥≠∧∨∈∉⊂⊃∪∩∀∃]/
+
+// 检测是否为 AI 输出的重复原始公式行（无定界符、含 Unicode 数学符号、紧跟 KaTeX 渲染块之后）
+function removeDuplicateFormulas(text: string): string {
+  const lines = text.split('\n')
+  const result: string[] = []
+  let i = 0
+
+  while (i < lines.length) {
+    const line = lines[i]
+    const trimmed = line.trim()
+
+    // 检查上一行是否是 KaTeX 渲染的 HTML（<span class="katex">）
+    const prevLine = result.length > 0 ? result[result.length - 1] : ''
+    const prevIsKaTeX = prevLine.includes('class="katex')
+
+    if (prevIsKaTeX && trimmed && !trimmed.startsWith('\\') && !trimmed.startsWith('$')) {
+      // 当前行不是 LaTeX 定界符开头
+      // 检查是否包含足够多的 Unicode 数学符号（超过 2 个不同符号）
+      const symbols = trimmed.match(MATH_SYMBOL_RE) || []
+      const uniqueSymbols = new Set(symbols)
+      if (uniqueSymbols.size >= 2) {
+        // 很可能是重复的原始公式行，跳过
+        i++
+        continue
+      }
+    }
+
+    result.push(line)
+    i++
+  }
+
+  return result.join('\n')
+}
+
 function renderMath(text: string): string {
   let result = text
 
@@ -75,7 +111,8 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
   useEffect(() => {
     if (!ref.current) return
 
-    const withMath = renderMath(content)
+    const deduped = removeDuplicateFormulas(content)
+    const withMath = renderMath(deduped)
     const result = marked.parse(withMath)
 
     const render = (html: string) => {
