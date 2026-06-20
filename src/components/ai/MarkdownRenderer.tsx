@@ -27,6 +27,15 @@ marked.setOptions({
   breaks: true,
 })
 
+// 检测一行是否为纯 LaTeX（包含足够的反斜杠命令）
+function isRawLatexLine(line: string): boolean {
+  const trimmed = line.trim()
+  if (!trimmed) return false
+  // 至少包含 2 个 \command 模式（如 \nabla、\times、\frac）
+  const cmdCount = (trimmed.match(/\\[a-zA-Z]+/g) || []).length
+  return cmdCount >= 2
+}
+
 function renderMath(text: string): string {
   let result = text
 
@@ -65,6 +74,24 @@ function renderMath(text: string): string {
       return math
     }
   })
+
+  // 无定界符的原始 LaTeX：按行检测，独立成行的纯 LaTeX 块渲染为 display math
+  const lines = result.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    if (isRawLatexLine(lines[i])) {
+      // 收集连续的 LaTeX 行
+      let end = i
+      while (end < lines.length && isRawLatexLine(lines[end])) end++
+      const latexBlock = lines.slice(i, end).join('\n').trim()
+      if (latexBlock) {
+        try {
+          lines.splice(i, end - i, katex.renderToString(latexBlock, { displayMode: true, throwOnError: false }))
+        } catch { /* keep original */ }
+      }
+      i = end - 1
+    }
+  }
+  result = lines.join('\n')
 
   return result
 }
