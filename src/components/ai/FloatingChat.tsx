@@ -76,7 +76,18 @@ export default function FloatingChat() {
       <div className="bg-white border-b border-gray-200 shrink-0 select-none">
         <div className="h-10 flex items-center px-3">
           {/* 左侧：学科 + 会话控制 */}
-          <div className="flex items-center flex-1 min-w-0" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
+          <div
+            className="flex items-center flex-1 min-w-0"
+            style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+            onClick={() => {
+              // Electron drag 区域会消费 mousedown，导致 textarea 失焦
+              // 点击后手动恢复焦点
+              setTimeout(() => {
+                const ta = document.querySelector('textarea')
+                if (ta) ta.focus()
+              }, 0)
+            }}
+          >
             <div className="flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
               <SubjectPicker />
               <SessionControls onToggleHistory={() => setShowHistory(!showHistory)} showHistory={showHistory} />
