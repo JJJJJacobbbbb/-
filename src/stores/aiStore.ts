@@ -348,11 +348,16 @@ export const useAiStore = create<AiState>((set, get) => ({
 
 回答原则：
 - 直接回答问题，不废话
-- 有公式或代码时用 Markdown 格式清晰展示
 - 复杂问题分步骤说明
 - 如果学生问的是题目，先分析再给解法
 - 不确定的内容如实说明，不要编造
-- 默认用中文回答，除非用户明确要求用其他语言`
+- 默认用中文回答，除非用户明确要求用其他语言
+
+数学公式格式要求（非常重要）：
+- 行内公式必须用 \\(...\\) 包裹，例如 \\(E = mc^2\\)
+- 独立公式必须用 \\[...\\] 包裹
+- 不要用普通括号包裹公式，不要用 $...$ 格式
+- 示例：行内 \\(\\boldsymbol{D}\\)，独立 \\[\\nabla \\times \\boldsymbol{E} = -\\frac{\\partial \\boldsymbol{B}}{\\partial t}\\]`
 
       const apiMessages = [{ role: 'system', content: systemPrompt }, ...contextMessages.map((msg) => {
         const msgScreenshots = msg === userMessage ? screenshots : (msg.screenshotData ? [msg.screenshotData] : [])
