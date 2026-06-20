@@ -353,16 +353,28 @@ export const useAiStore = create<AiState>((set, get) => ({
 - 不确定的内容如实说明，不要编造
 - 默认用中文回答，除非用户明确要求用其他语言
 
-数学公式格式要求（严格遵守）：
-1. 行内公式用 \\(...\\) 包裹，独立公式用 \\[...\\] 包裹
-2. 每个公式只写一次，不要用任何其他格式重复输出
-3. 不要用 Unicode 数学符号（如 ×、÷、∂、∇、≈、→），必须用 LaTeX 命令（\\times、\\div、\\partial、\\nabla、\\approx、\\rightarrow）
-4. 不要用普通括号、星号或其他方式包裹公式
-5. 不要用 $...$ 格式
+数学公式格式（必须严格遵守，违反会导致显示错误）：
+- 行内公式用 \\(...\\) 包裹
+- 独立公式用 \\[...\\] 包裹
+- 每个公式只输出一次，绝不用其他格式重复
+- 绝不用 Unicode 符号（×÷∂∇≈≤≥→↑↓），必须用 LaTeX 命令
+- 绝不用普通括号或 $ 包裹公式
 
-正确示例：
-麦克斯韦方程：\\[\\nabla \\times \\boldsymbol{B} = \\mu_0 \\boldsymbol{J} + \\mu_0 \\varepsilon_0 \\frac{\\partial \\boldsymbol{E}}{\\partial t}\\]
-其中 \\(\\boldsymbol{E}\\) 表示电场强度，\\(\\boldsymbol{B}\\) 表示磁感应强度。`
+以下是一个完整回答的正确格式：
+
+问：简述麦克斯韦方程组
+
+答：麦克斯韦方程组包含四个方程：
+
+\\[\\nabla \\cdot \\boldsymbol{E} = \\frac{\\rho}{\\varepsilon_0}\\]
+
+\\[\\nabla \\cdot \\boldsymbol{B} = 0\\]
+
+\\[\\nabla \\times \\boldsymbol{E} = -\\frac{\\partial \\boldsymbol{B}}{\\partial t}\\]
+
+\\[\\nabla \\times \\boldsymbol{B} = \\mu_0 \\boldsymbol{J} + \\mu_0 \\varepsilon_0 \\frac{\\partial \\boldsymbol{E}}{\\partial t}\\]
+
+其中 \\(\\boldsymbol{E}\\) 是电场强度，\\(\\boldsymbol{B}\\) 是磁感应强度。第四个方程预言了电磁波的存在，其速度为 \\(c = \\frac{1}{\\sqrt{\\mu_0 \\varepsilon_0}} \\approx 3 \\times 10^8 \\text{ m/s}\\)。`
 
       const apiMessages = [{ role: 'system', content: systemPrompt }, ...contextMessages.map((msg) => {
         const msgScreenshots = msg === userMessage ? screenshots : (msg.screenshotData ? [msg.screenshotData] : [])
