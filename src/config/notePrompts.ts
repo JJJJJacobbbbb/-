@@ -51,23 +51,3 @@ export const NOTE_PROMPTS: Record<GenerateNoteType, string> = {
   technique: TECHNIQUE_PROMPT,
   other: OTHER_PROMPT,
 }
-
-export const SIMILARITY_CHECK_PROMPT = `你是一个笔记查重助手。对比新笔记与已有笔记列表，判断是否存在内容高度相似的笔记。
-只关注知识点是否重复，忽略表述差异。如果两篇笔记讲的是同一个知识点或高度重叠的内容，就算相似。
-
-请只返回 JSON，不要有其他文字：
-{"similarId": "最相似笔记的id", "reason": "相似原因简述"}
-如果没有相似笔记：
-{"similarId": null, "reason": "无相似笔记"}`
-
-export const MERGE_PROMPT = `你是一个笔记整合助手。将两篇相似笔记合并为一篇更完整、更优质的笔记。
-
-要求：
-1. 合并重复内容，保留两篇各自独有的信息
-2. 组织结构清晰，使用简洁的列表格式
-3. 标题取最能概括两者的一个
-4. 内容控制在 8-12 个要点
-
-请按以下格式输出：
-【标题】合并后的标题
-【内容】合并后的内容`

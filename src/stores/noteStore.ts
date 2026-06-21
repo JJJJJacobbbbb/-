@@ -77,7 +77,6 @@ export interface GeneratedNoteData {
 interface NoteState {
   notes: Note[]
   filterSubjectId: string | null
-  filterCategory: NoteCategory | null
   filterType: 'all' | 'subject'
   searchQuery: string
 
@@ -107,7 +106,6 @@ export const useNoteStore = create<NoteState>((set, get) => {
   return {
     notes: [],
     filterSubjectId: null,
-  filterCategory: null,
   filterType: 'all',
   searchQuery: '',
 
@@ -146,22 +144,18 @@ export const useNoteStore = create<NoteState>((set, get) => {
   },
 
   setFilter: (type, subjectId = null) => {
-    set({ filterType: type, filterSubjectId: subjectId, filterCategory: null })
+    set({ filterType: type, filterSubjectId: subjectId })
   },
 
   setSearchQuery: (query) => set({ searchQuery: query }),
 
   getFilteredNotes: () => {
-    const { notes, filterType, filterSubjectId, filterCategory, searchQuery } = get()
+    const { notes, filterType, filterSubjectId, searchQuery } = get()
 
     let filtered = [...notes]
 
     if (filterType === 'subject' && filterSubjectId) {
       filtered = filtered.filter((n) => n.subjectId === filterSubjectId)
-    }
-
-    if (filterCategory) {
-      filtered = filtered.filter((n) => n.category === filterCategory)
     }
 
     if (searchQuery.trim()) {

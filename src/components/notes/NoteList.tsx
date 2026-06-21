@@ -22,7 +22,7 @@ const CATEGORY_COLORS: Record<NoteCategory, string> = {
 
 export default function NoteList() {
   const {
-    notes, filterType, filterSubjectId, filterCategory, searchQuery,
+    notes, filterType, filterSubjectId, searchQuery,
     setFilter, setSearchQuery, getFilteredNotes,
   } = useNoteStore()
   const { subjects } = useSubjectStore()
@@ -37,7 +37,7 @@ export default function NoteList() {
       result = result.filter((n) => n.category === categoryFilter)
     }
     return result
-  }, [notes, filterType, filterSubjectId, filterCategory, searchQuery, categoryFilter])
+  }, [notes, filterType, filterSubjectId, searchQuery, categoryFilter])
 
   // 统计
   const stats = useMemo(() => {
