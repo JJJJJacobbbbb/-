@@ -3,7 +3,7 @@ import { useAiStore } from '../../stores/aiStore'
 import { useSubjectStore } from '../../stores/subjectStore'
 import { useShallow } from 'zustand/react/shallow'
 import { useAutoScroll } from '../../hooks/useAutoScroll'
-import { useNoteStore, type Note, type GeneratedNoteData } from '../../stores/noteStore'
+import { useNoteStore, NOTE_CATEGORY_LABELS } from '../../stores/noteStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import ChatMessage from './ChatMessage'
 import ChatInput from './ChatInput'
@@ -44,10 +44,9 @@ export default function ChatView({
     currentSubjectId: s.currentSubjectId,
     subjects: s.subjects,
   })))
-  const { generateNote, addNote, mergeNote } = useNoteStore(useShallow((s) => ({
+  const { generateNote, addNote } = useNoteStore(useShallow((s) => ({
     generateNote: s.generateNote,
     addNote: s.addNote,
-    mergeNote: s.mergeNote,
   })))
   const { getActiveModel, apiConfigs } = useSettingsStore(useShallow((s) => ({
     getActiveModel: s.getActiveModel,
@@ -65,11 +64,10 @@ export default function ChatView({
   const [historyFilter, setHistoryFilter] = useState<'all' | 'current'>('all')
   const [toastMsg, setToastMsg] = useState<{ message: string; type: 'info' | 'error' | 'success' } | null>(null)
   const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null)
-  const [similarDialog, setSimilarDialog] = useState<{
-    newNote: GeneratedNoteData
-    existingNote: Note
-    mergeResult?: { title: string; content: string }
-    merging?: boolean
+  const [noteInputDialog, setNoteInputDialog] = useState<{
+    msgIdx: number
+    type: 'knowledge' | 'technique' | 'other'
+    extraInstructions: string
   } | null>(null)
 
   useEffect(() => {
@@ -79,12 +77,6 @@ export default function ChatView({
       createSession()
     }
   }, [])
-
-  // 切换会话时关闭相似笔记弹窗
-  useEffect(() => {
-    setSimilarDialog(null)
-  }, [activeSessionId])
-
 
   const sessions = useMemo(() => {
     const allSessionList = Object.values(allSessions).sort((a, b) => b.updatedAt - a.updatedAt)
@@ -104,7 +96,7 @@ export default function ChatView({
     return subject?.color || '#9ca3af'
   }, [subjects])
 
-  const handleGenerateNote = useCallback(async (msgIdx: number, type: 'knowledge' | 'technique' | 'other') => {
+  const handleGenerateNote = useCallback(async (msgIdx: number, type: 'knowledge' | 'technique' | 'other', extraInstructions?: string) => {
     if (!session) return
     setNoteGenMsgIdx(msgIdx)
     setNoteGenLoading(true)
@@ -117,20 +109,15 @@ export default function ChatView({
         }
       }
       const aiMsg = session.messages[msgIdx].content
-      const result = await generateNote(userMsg, aiMsg, currentSubjectId, type)
+      const result = await generateNote(userMsg, aiMsg, currentSubjectId, type, extraInstructions)
       if (result) {
-        if (result.existingNote) {
-          // 发现相似笔记，弹窗让用户选择
-          setSimilarDialog({ newNote: result, existingNote: result.existingNote })
-        } else {
-          addNote({
-            title: result.title,
-            content: result.content,
-            subjectId: currentSubjectId,
-            category: result.category,
-            chapter: result.chapter,
-          })
-        }
+        addNote({
+          title: result.title,
+          content: result.content,
+          subjectId: currentSubjectId,
+          category: result.category,
+          chapter: result.chapter,
+        })
       } else {
         setToastMsg({ message: '笔记生成失败，请检查 AI 模型配置是否正确。', type: 'error' })
       }
@@ -144,36 +131,6 @@ export default function ChatView({
     getActiveModel() !== null,
     [apiConfigs]
   )
-
-  const handleMerge = useCallback(async () => {
-    const dialog = similarDialog
-    if (!dialog) return
-    setSimilarDialog((prev) => prev ? { ...prev, merging: true } : null)
-    const result = await mergeNote(dialog.existingNote, dialog.newNote.title, dialog.newNote.content)
-    setSimilarDialog((prev) => prev ? { ...prev, merging: false, mergeResult: result || undefined } : null)
-  }, [similarDialog, mergeNote])
-
-  const handleDialogChoice = useCallback((action: 'update' | 'confirm-merge' | 'create' | 'cancel') => {
-    const dialog = similarDialog
-    if (!dialog) return
-    const { updateNote } = useNoteStore.getState()
-    const { newNote, existingNote, mergeResult } = dialog
-
-    if (action === 'update') {
-      updateNote(existingNote.id, { title: newNote.title, content: newNote.content, chapter: newNote.chapter })
-    } else if (action === 'confirm-merge' && mergeResult) {
-      updateNote(existingNote.id, { title: mergeResult.title, content: mergeResult.content })
-    } else if (action === 'create') {
-      addNote({
-        title: newNote.title,
-        content: newNote.content,
-        subjectId: currentSubjectId,
-        category: newNote.category,
-        chapter: newNote.chapter,
-      })
-    }
-    setSimilarDialog(null)
-  }, [similarDialog, addNote, currentSubjectId])
 
   return (
     <div className={wrapperClass}>
@@ -294,21 +251,21 @@ export default function ChatView({
                       ) : (
                         <div className="flex gap-1">
                           <button
-                            onClick={() => handleGenerateNote(idx, 'knowledge')}
+                            onClick={() => setNoteInputDialog({ msgIdx: idx, type: 'knowledge', extraInstructions: '' })}
                             disabled={noteGenLoading}
                             className="text-[10px] px-2 py-0.5 text-purple-500 hover:bg-purple-50 rounded border border-purple-200 transition-colors"
                           >
                             + 知识重点
                           </button>
                           <button
-                            onClick={() => handleGenerateNote(idx, 'technique')}
+                            onClick={() => setNoteInputDialog({ msgIdx: idx, type: 'technique', extraInstructions: '' })}
                             disabled={noteGenLoading}
                             className="text-[10px] px-2 py-0.5 text-purple-500 hover:bg-purple-50 rounded border border-purple-200 transition-colors"
                           >
                             + 解题技巧
                           </button>
                           <button
-                            onClick={() => handleGenerateNote(idx, 'other')}
+                            onClick={() => setNoteInputDialog({ msgIdx: idx, type: 'other', extraInstructions: '' })}
                             disabled={noteGenLoading}
                             className="text-[10px] px-2 py-0.5 text-purple-500 hover:bg-purple-50 rounded border border-purple-200 transition-colors"
                           >
@@ -395,89 +352,39 @@ export default function ChatView({
         <ChatInput screenshotMode={screenshotMode} />
       </div>
 
-      {/* 相似笔记提示弹窗 */}
-      {similarDialog && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSimilarDialog(null)}>
+      {/* 笔记生成输入弹窗 */}
+      {noteInputDialog && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setNoteInputDialog(null)}>
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-5" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-gray-800 mb-2">发现相似笔记</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              已有笔记「{similarDialog.existingNote.title}」与新生成的内容相似。
-            </p>
-
-            {/* 已有笔记预览 */}
-            <div className="bg-gray-50 rounded p-3 mb-4 max-h-32 overflow-y-auto">
-              <p className="text-xs text-gray-400 mb-1">已有笔记：</p>
-              <p className="text-sm font-medium text-gray-700">{similarDialog.existingNote.title}</p>
-              <p className="text-xs text-gray-500 mt-1 line-clamp-3">{similarDialog.existingNote.content}</p>
+            <h3 className="text-base font-semibold text-gray-800 mb-1">
+              生成{NOTE_CATEGORY_LABELS[noteInputDialog.type]}笔记
+            </h3>
+            <p className="text-xs text-gray-400 mb-3">可补充说明，让笔记更贴合你的需求</p>
+            <textarea
+              value={noteInputDialog.extraInstructions}
+              onChange={(e) => setNoteInputDialog({ ...noteInputDialog, extraInstructions: e.target.value })}
+              placeholder="例如：重点写公式推导过程、用表格对比..."
+              className="w-full h-24 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3 resize-none focus:outline-none focus:border-blue-400 mb-4"
+              autoFocus
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const { msgIdx, type, extraInstructions } = noteInputDialog
+                  setNoteInputDialog(null)
+                  handleGenerateNote(msgIdx, type, extraInstructions || undefined)
+                }}
+                className="flex-1 py-2 text-sm text-white bg-purple-500 hover:bg-purple-600 rounded transition-colors"
+              >
+                生成笔记
+              </button>
+              <button
+                onClick={() => setNoteInputDialog(null)}
+                className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                取消
+              </button>
             </div>
-
-            {/* 整合结果预览 */}
-            {similarDialog.mergeResult && (
-              <div className="bg-blue-50 rounded p-3 mb-4 max-h-40 overflow-y-auto">
-                <p className="text-xs text-blue-500 mb-1">整合结果：</p>
-                <p className="text-sm font-medium text-gray-700">{similarDialog.mergeResult.title}</p>
-                <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap">{similarDialog.mergeResult.content}</p>
-              </div>
-            )}
-
-            {/* 按钮区域 */}
-            {similarDialog.mergeResult ? (
-              /* 整合完成后：确认保存 / 取消 */
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleDialogChoice('confirm-merge')}
-                  disabled={similarDialog.merging}
-                  className="flex-1 py-2 text-sm text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  确认保存整合结果
-                </button>
-                <button
-                  onClick={() => setSimilarDialog(null)}
-                  disabled={similarDialog.merging}
-                  className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  取消
-                </button>
-              </div>
-            ) : similarDialog.merging ? (
-              /* 整合中 */
-              <div className="text-center py-3">
-                <span className="text-sm text-blue-500 animate-pulse">AI 正在整合笔记...</span>
-              </div>
-            ) : (
-              /* 初始选择：更新 / 整合 / 新建 */
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleDialogChoice('update')}
-                    disabled={similarDialog.merging}
-                    className="flex-1 py-2 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    更新已有
-                  </button>
-                  <button
-                    onClick={handleMerge}
-                    disabled={similarDialog.merging}
-                    className="flex-1 py-2 text-sm text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    整合合并
-                  </button>
-                  <button
-                    onClick={() => handleDialogChoice('create')}
-                    disabled={similarDialog.merging}
-                    className="flex-1 py-2 text-sm text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    仍然新建
-                  </button>
-                </div>
-                <button
-                  onClick={() => setSimilarDialog(null)}
-                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  取消，不保存
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}

@@ -1,11 +1,24 @@
 import { useState, useMemo } from 'react'
-import { useNoteStore, NOTE_CATEGORY_LABELS, type NoteCategory, type Note } from '../../stores/noteStore'
+import { useNoteStore, type NoteCategory } from '../../stores/noteStore'
 import { useSubjectStore } from '../../stores/subjectStore'
 import { useTabStore } from '../../stores/tabStore'
 import { exportNotes, exportBySubjectBatch, exportBySubjectCategoryBatch } from '../../lib/noteExport'
 import { dragRegion, noDragRegion } from '../../lib/styles'
 import NoteCard from './NoteCard'
 import WinControls from '../shared/WinControls'
+
+const CATEGORY_FILTERS: { key: NoteCategory | null; label: string }[] = [
+  { key: null, label: '全部' },
+  { key: 'knowledge', label: '知识重点' },
+  { key: 'technique', label: '解题技巧' },
+  { key: 'other', label: '其他' },
+]
+
+const CATEGORY_COLORS: Record<NoteCategory, string> = {
+  knowledge: '#8b5cf6',
+  technique: '#f59e0b',
+  other: '#6b7280',
+}
 
 export default function NoteList() {
   const {
@@ -16,47 +29,30 @@ export default function NoteList() {
   const { closeNotes } = useTabStore()
 
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState<NoteCategory | null>(null)
 
-  const filteredNotes = useMemo(() => getFilteredNotes(), [notes, filterType, filterSubjectId, filterCategory, searchQuery])
+  const filteredNotes = useMemo(() => {
+    let result = getFilteredNotes()
+    if (categoryFilter) {
+      result = result.filter((n) => n.category === categoryFilter)
+    }
+    return result
+  }, [notes, filterType, filterSubjectId, filterCategory, searchQuery, categoryFilter])
 
   // 统计
   const stats = useMemo(() => {
     const bySubject: Record<string, number> = {}
+    const byCategory: Record<NoteCategory, number> = { knowledge: 0, technique: 0, other: 0 }
     for (const note of notes) {
       if (note.subjectId) {
         bySubject[note.subjectId] = (bySubject[note.subjectId] || 0) + 1
       }
+      byCategory[note.category]++
     }
-    return { bySubject, total: notes.length }
+    return { bySubject, byCategory, total: notes.length }
   }, [notes])
 
   const subjectsWithNotes = subjects.filter((s) => stats.bySubject[s.id])
-
-  // 按 subject → category 分组
-  const grouped = useMemo(() => {
-    const result: { subjectId: string | null; subjectName: string; subjectColor: string; categories: { category: NoteCategory; notes: Note[] }[] }[] = []
-    const subjectIds = filterType === 'subject' && filterSubjectId
-      ? [filterSubjectId]
-      : [...new Set(filteredNotes.map((n) => n.subjectId))]
-
-    for (const sid of subjectIds) {
-      const subjectNotes = filteredNotes.filter((n) => n.subjectId === sid)
-      if (subjectNotes.length === 0) continue
-      const subject = subjects.find((s) => s.id === sid)
-      const categories: { category: NoteCategory; notes: Note[] }[] = []
-      for (const cat of ['knowledge', 'technique', 'other'] as NoteCategory[]) {
-        const catNotes = subjectNotes.filter((n) => n.category === cat)
-        if (catNotes.length > 0) categories.push({ category: cat, notes: catNotes })
-      }
-      result.push({
-        subjectId: sid,
-        subjectName: subject?.name || '未分类',
-        subjectColor: subject?.color || '#9ca3af',
-        categories,
-      })
-    }
-    return result
-  }, [filteredNotes, filterType, filterSubjectId, subjects])
 
   const handleExportAll = async () => {
     setShowExportMenu(false)
@@ -170,46 +166,73 @@ export default function NoteList() {
           </div>
         )}
 
-        {/* 科目筛选 */}
-        {notes.length > 0 && subjectsWithNotes.length > 0 && (
+        {/* 类型筛选标签 */}
+        {notes.length > 0 && (
           <div className="px-4 pb-3" style={noDragRegion}>
             <div className="flex items-center gap-2 overflow-x-auto">
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition-colors ${
-                  filterType === 'all' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                }`}
-              >
-                全部
-              </button>
-              {subjectsWithNotes.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => {
-                    if (filterSubjectId === s.id && filterType === 'subject') {
-                      setFilter('all')
-                    } else {
-                      setFilter('subject', s.id)
-                    }
-                  }}
-                  className={`px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                    filterType === 'subject' && filterSubjectId === s.id
-                      ? 'text-white'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}
-                  style={filterType === 'subject' && filterSubjectId === s.id ? { backgroundColor: s.color } : undefined}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: filterType === 'subject' && filterSubjectId === s.id ? 'white' : s.color }} />
-                  {s.name}
-                  <span className="text-[10px] opacity-70">{stats.bySubject[s.id]}</span>
-                </button>
-              ))}
+              {CATEGORY_FILTERS.map((f) => {
+                const isActive = categoryFilter === f.key
+                const count = f.key ? stats.byCategory[f.key] : stats.total
+                const color = f.key ? CATEGORY_COLORS[f.key] : '#3b82f6'
+                return (
+                  <button
+                    key={f.key || 'all'}
+                    onClick={() => setCategoryFilter(f.key)}
+                    className={`px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                      isActive ? 'text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                    style={isActive ? { backgroundColor: color } : undefined}
+                  >
+                    {f.key && (
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isActive ? 'white' : color }} />
+                    )}
+                    {f.label}
+                    <span className="text-[10px] opacity-70">{count}</span>
+                  </button>
+                )
+              })}
+
+              {/* 科目筛选分隔 */}
+              {subjectsWithNotes.length > 0 && (
+                <>
+                  <span className="w-px h-4 bg-gray-200 flex-shrink-0" />
+                  <button
+                    onClick={() => setFilter('all')}
+                    className={`px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition-colors ${
+                      filterType === 'all' && !filterSubjectId ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    所有科目
+                  </button>
+                  {subjectsWithNotes.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        if (filterSubjectId === s.id && filterType === 'subject') {
+                          setFilter('all')
+                        } else {
+                          setFilter('subject', s.id)
+                        }
+                      }}
+                      className={`px-3 py-1.5 text-xs rounded-full whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                        filterType === 'subject' && filterSubjectId === s.id
+                          ? 'text-white'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                      style={filterType === 'subject' && filterSubjectId === s.id ? { backgroundColor: s.color } : undefined}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: filterType === 'subject' && filterSubjectId === s.id ? 'white' : s.color }} />
+                      {s.name}
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
           </div>
         )}
       </header>
 
-      {/* 内容区 - 按科目→类型分组 */}
+      {/* 内容区 - 扁平列表 */}
       <div className="flex-1 overflow-y-auto p-3">
         {notes.length === 0 ? (
           <div className="h-full flex items-center justify-center text-gray-400">
@@ -228,7 +251,7 @@ export default function NoteList() {
             <div className="text-center">
               <p className="text-sm">没有匹配的笔记</p>
               <button
-                onClick={() => { setSearchQuery(''); setFilter('all') }}
+                onClick={() => { setSearchQuery(''); setCategoryFilter(null); setFilter('all') }}
                 className="mt-2 text-sm text-blue-500 hover:text-blue-600"
               >
                 清除筛选条件
@@ -236,33 +259,9 @@ export default function NoteList() {
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
-            {grouped.map((group) => (
-              <div key={group.subjectId || '__none'}>
-                {/* 科目标题 */}
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: group.subjectColor }} />
-                  <h2 className="text-sm font-semibold text-gray-700">{group.subjectName}</h2>
-                  <span className="text-xs text-gray-400">
-                    {group.categories.reduce((sum, c) => sum + c.notes.length, 0)} 条
-                  </span>
-                </div>
-
-                {/* 分类子区域 */}
-                {group.categories.map((catGroup) => (
-                  <div key={catGroup.category} className="mb-4 ml-4">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-xs font-medium text-gray-500">{NOTE_CATEGORY_LABELS[catGroup.category]}</span>
-                      <span className="text-[10px] text-gray-400">{catGroup.notes.length}</span>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                      {catGroup.notes.map((note) => (
-                        <NoteCard key={note.id} note={note} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {filteredNotes.map((note) => (
+              <NoteCard key={note.id} note={note} />
             ))}
           </div>
         )}

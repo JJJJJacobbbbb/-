@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { useSettingsStore } from './settingsStore'
-import { NOTE_PROMPTS, SIMILARITY_CHECK_PROMPT, MERGE_PROMPT, type GenerateNoteType } from '../config/notePrompts'
+import { NOTE_PROMPTS, type GenerateNoteType } from '../config/notePrompts'
 import { logger } from '../lib/logger'
 import { generateId } from '../lib/id'
 import { NOTES_DEBOUNCE_MS } from '../lib/constants'
@@ -72,7 +72,6 @@ export interface GeneratedNoteData {
   content: string
   category: NoteCategory
   chapter: string
-  existingNote?: Note // AI 检测到的相似笔记
 }
 
 interface NoteState {
@@ -89,8 +88,7 @@ interface NoteState {
   setSearchQuery: (query: string) => void
   getFilteredNotes: () => Note[]
 
-  generateNote: (userContent: string, assistantContent: string, subjectId: string | null, type: GenerateNoteType) => Promise<GeneratedNoteData | null>
-  mergeNote: (existingNote: Note, newTitle: string, newContent: string) => Promise<{ title: string; content: string } | null>
+  generateNote: (userContent: string, assistantContent: string, subjectId: string | null, type: GenerateNoteType, extraInstructions?: string) => Promise<GeneratedNoteData | null>
 
   loadFromStorage: () => void
   saveToStorage: () => void
@@ -179,7 +177,7 @@ export const useNoteStore = create<NoteState>((set, get) => {
     return filtered.sort((a, b) => b.updatedAt - a.updatedAt)
   },
 
-  generateNote: async (userContent, assistantContent, subjectId, type) => {
+  generateNote: async (userContent, assistantContent, _subjectId, type, extraInstructions) => {
     const settingsStore = useSettingsStore.getState()
     const modelInfo = settingsStore.getActiveModel()
     if (!modelInfo) return null
@@ -189,7 +187,11 @@ export const useNoteStore = create<NoteState>((set, get) => {
     try {
       // 1. 生成笔记
       const prompt = NOTE_PROMPTS[type]
-      const text = await callAI(config, model, prompt, `学生的问题：\n${userContent}\n\nAI的回答：\n${assistantContent}`)
+      let userMsg = `学生的问题：\n${userContent}\n\nAI的回答：\n${assistantContent}`
+      if (extraInstructions) {
+        userMsg += `\n\n用户补充要求：${extraInstructions}`
+      }
+      const text = await callAI(config, model, prompt, userMsg)
       if (!text) return null
 
       const category: NoteCategory = type === 'knowledge' ? 'knowledge' : type === 'technique' ? 'technique' : 'other'
@@ -208,69 +210,9 @@ export const useNoteStore = create<NoteState>((set, get) => {
       if (!title) title = userContent.slice(0, 20)
       if (!content) content = text
 
-      // 2. AI 查重：在同科目+同分类的已有笔记中查找相似
-      const { notes } = get()
-      const candidates = notes.filter((n) => n.subjectId === subjectId && n.category === category)
-      let existingNote: Note | undefined
-
-      if (candidates.length > 0) {
-        const candidateList = candidates
-          .map((n) => `id: ${n.id} | 标题: ${n.title} | 内容摘要: ${n.content.slice(0, 100)}`)
-          .join('\n')
-
-        const checkResult = await callAI(
-          config, model,
-          SIMILARITY_CHECK_PROMPT,
-          `【新笔记】\n标题：${title}\n内容：${content}\n\n【已有笔记列表】\n${candidateList}`
-        )
-
-        if (checkResult) {
-          try {
-            const match = checkResult.match(/\{[\s\S]*\}/)
-            if (match) {
-              const parsed = JSON.parse(match[0])
-              if (parsed.similarId) {
-                existingNote = candidates.find((n) => n.id === parsed.similarId)
-              }
-            }
-          } catch { /* JSON 解析失败，视为无相似笔记 */ }
-        }
-      }
-
-      return { title, content, category, chapter, existingNote }
+      return { title, content, category, chapter }
     } catch (e) {
       logger.error('生成笔记失败', e)
-      return null
-    }
-  },
-
-  mergeNote: async (existingNote, newTitle, newContent) => {
-    const settingsStore = useSettingsStore.getState()
-    const modelInfo = settingsStore.getActiveModel()
-    if (!modelInfo) return null
-
-    const { config, model } = modelInfo
-
-    try {
-      const text = await callAI(
-        config, model,
-        MERGE_PROMPT,
-        `【笔记A（已有）】\n标题：${existingNote.title}\n内容：${existingNote.content}\n\n【笔记B（新生成）】\n标题：${newTitle}\n内容：${newContent}`
-      )
-      if (!text) return null
-
-      let title = newTitle
-      let content = text
-
-      const titleMatch = text.match(/【标题】(.+)/)
-      const contentMatch = text.match(/【内容】([\s\S]*)/)
-
-      if (titleMatch) title = titleMatch[1].trim()
-      if (contentMatch) content = contentMatch[1].trim()
-
-      return { title, content }
-    } catch (e) {
-      logger.error('整合笔记失败', e)
       return null
     }
   },
