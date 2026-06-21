@@ -41,67 +41,111 @@ function DefaultModelSelect({ models, activeModelId, onSelect }: {
   )
 }
 
-function ThinkingTestButton({ config, model, onResult }: {
+// 1x1 白色 PNG (用于视觉能力测试)
+const TEST_IMAGE = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=='
+
+// 已知音频模型关键词
+const AUDIO_KEYWORDS = ['whisper', 'audio', 'speech', 'tts', 'asr']
+
+async function testThinking(apiUrl: string, apiKey: string, modelId: string): Promise<boolean> {
+  const res = await fetch(apiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: modelId, messages: [{ role: 'user', content: '1+1=?' }], stream: true }),
+    signal: AbortSignal.timeout(15000),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const reader = res.body?.getReader()
+  if (!reader) throw new Error('无响应流')
+  const decoder = new TextDecoder()
+  let found = false
+  let buffer = ''
+  while (!found) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue
+      const data = line.slice(6).trim()
+      if (data === '[DONE]') break
+      try {
+        const delta = JSON.parse(data).choices?.[0]?.delta
+        if (delta?.reasoning_content || delta?.thinking_content) { found = true; break }
+      } catch { /* ignore */ }
+    }
+  }
+  reader.cancel()
+  return found
+}
+
+async function testVision(apiUrl: string, apiKey: string, modelId: string): Promise<boolean> {
+  const res = await fetch(apiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: modelId,
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: '描述这张图片' },
+        { type: 'image_url', image_url: { url: `data:image/png;base64,${TEST_IMAGE}` } },
+      ] }],
+      max_tokens: 50,
+    }),
+    signal: AbortSignal.timeout(15000),
+  })
+  if (!res.ok) {
+    // 400/400 通常表示模型不接受图片
+    if (res.status === 400 || res.status === 415) return false
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const data = await res.json().catch(() => null)
+  // 有正常回复 = 支持图片
+  return !!(data?.choices?.[0]?.message?.content)
+}
+
+function testAudioByName(modelId: string): boolean {
+  const lower = modelId.toLowerCase()
+  return AUDIO_KEYWORDS.some((kw) => lower.includes(kw))
+}
+
+function ModelCapabilityTester({ config, model, onResult }: {
   config: { apiUrl: string; apiKey: string }
-  model: { modelId: string; hasThinking?: boolean }
-  onResult: (ok: boolean, msg: string) => void
+  model: { modelId: string; hasThinking?: boolean; hasVision?: boolean; audioCapable?: boolean }
+  onResult: (result: { hasThinking: boolean; hasVision: boolean; audioCapable: boolean }, msg: string) => void
 }) {
   const [testing, setTesting] = useState(false)
 
   const handleTest = async () => {
     if (testing) return
     if (!config.apiUrl || !config.apiKey) {
-      onResult(false, '请先填写 API 地址和 Key')
+      onResult({ hasThinking: model.hasThinking ?? false, hasVision: model.hasVision ?? false, audioCapable: model.audioCapable ?? false }, '请先填写 API 地址和 Key')
       return
     }
     setTesting(true)
     try {
-      const res = await fetch(config.apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
-        body: JSON.stringify({
-          model: model.modelId,
-          messages: [{ role: 'user', content: '1+1=?' }],
-          stream: true,
-        }),
-        signal: AbortSignal.timeout(15000),
-      })
-      if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        throw new Error(`HTTP ${res.status}${text ? ': ' + text.slice(0, 80) : ''}`)
-      }
-      const reader = res.body?.getReader()
-      if (!reader) throw new Error('响应无内容')
-      const decoder = new TextDecoder()
-      let hasThinking = false
-      let buffer = ''
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const data = line.slice(6).trim()
-          if (data === '[DONE]') break
-          try {
-            const parsed = JSON.parse(data)
-            const delta = parsed.choices?.[0]?.delta
-            if (delta?.reasoning_content || delta?.thinking_content) {
-              hasThinking = true
-              break
-            }
-          } catch { /* ignore */ }
-        }
-        if (hasThinking) break
-      }
-      reader.cancel()
-      onResult(hasThinking, hasThinking ? '该模型支持思考模式' : '该模型不支持思考模式')
+      // 并行测试思考和视觉
+      const [thinking, vision] = await Promise.allSettled([
+        testThinking(config.apiUrl, config.apiKey, model.modelId),
+        testVision(config.apiUrl, config.apiKey, model.modelId),
+      ])
+      const hasThinking = thinking.status === 'fulfilled' ? thinking.value : false
+      const hasVision = vision.status === 'fulfilled' ? vision.value : false
+      const audioCapable = testAudioByName(model.modelId)
+
+      const parts: string[] = []
+      if (hasThinking) parts.push('思考')
+      if (hasVision) parts.push('视觉')
+      if (audioCapable) parts.push('音频')
+      const msg = parts.length > 0
+        ? `检测到能力: ${parts.join('、')}`
+        : '未检测到特殊能力（普通文本模型）'
+
+      onResult({ hasThinking, hasVision, audioCapable }, msg)
     } catch (err) {
-      logger.error('思考模式测试失败', err)
-      const msg = err instanceof Error ? `测试失败: ${err.message}` : '测试失败: 未知错误'
-      onResult(false, msg)
+      logger.error('能力测试失败', err)
+      const msg = err instanceof Error ? `测试失败: ${err.message}` : '测试失败'
+      onResult({ hasThinking: false, hasVision: false, audioCapable: false }, msg)
     } finally {
       setTesting(false)
     }
@@ -111,15 +155,15 @@ function ThinkingTestButton({ config, model, onResult }: {
     <button
       onClick={handleTest}
       disabled={testing}
-      className="text-[10px] px-2 py-0.5 rounded transition-colors"
+      className="text-[10px] px-2 py-0.5 rounded border transition-colors"
       style={{
-        backgroundColor: model.hasThinking ? '#22c55e15' : '#f9fafb',
-        color: model.hasThinking ? '#16a34a' : '#6b7280',
-        border: `1px solid ${model.hasThinking ? '#bbf7d0' : '#e5e7eb'}`,
+        backgroundColor: '#f9fafb',
+        color: '#6b7280',
+        border: '1px solid #e5e7eb',
       }}
-      title={model.hasThinking ? '已标记支持思考，点击重新测试' : '测试该模型是否支持思考/推理模式'}
+      title="自动测试模型的思考、视觉、音频能力"
     >
-      {testing ? '测试中...' : model.hasThinking ? '思考 ✓' : '测试思考'}
+      {testing ? '测试中...' : '测试能力'}
     </button>
   )
 }
@@ -146,7 +190,7 @@ export default function ApiSettings() {
   const [fetchTargetId, setFetchTargetId] = useState<string | null>(null)
   const [showApiKey, setShowApiKey] = useState<Record<string, boolean>>({})
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [modelTestMsg, setModelTestMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const [modelTestMsg, setModelTestMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null)
 
   useEffect(() => {
     if (!modelTestMsg) return
@@ -456,30 +500,6 @@ export default function ApiSettings() {
                                 className="w-20 px-2 py-1 border border-gray-200 rounded text-xs"
                                 placeholder="Token"
                               />
-                              <div className="flex gap-0.5">
-                                <button
-                                  onClick={() => updateModelInConfig(config.id, m.id, { hasVision: !m.hasVision })}
-                                  className="text-[9px] px-1 py-0.5 rounded transition-colors"
-                                  style={{
-                                    backgroundColor: m.hasVision ? '#8b5cf620' : '#f3f4f6',
-                                    color: m.hasVision ? '#8b5cf6' : '#9ca3af',
-                                  }}
-                                  title="支持图片识别"
-                                >
-                                  视觉
-                                </button>
-                                <button
-                                  onClick={() => updateModelInConfig(config.id, m.id, { audioCapable: !m.audioCapable })}
-                                  className="text-[9px] px-1 py-0.5 rounded transition-colors"
-                                  style={{
-                                    backgroundColor: m.audioCapable ? '#f59e0b20' : '#f3f4f6',
-                                    color: m.audioCapable ? '#f59e0b' : '#9ca3af',
-                                  }}
-                                  title="支持音频转文字"
-                                >
-                                  音频
-                                </button>
-                              </div>
                               <button
                                 onClick={() => removeModelFromConfig(config.id, m.id)}
                                 className="text-gray-400 hover:text-red-500 p-0.5"
@@ -488,19 +508,19 @@ export default function ApiSettings() {
                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                               </button>
                             </div>
-                            {/* 次级操作行：测试思考 */}
-                            <div className="flex items-center gap-2 mt-1 ml-1">
-                              <ThinkingTestButton
+                            {/* 能力标签 + 测试按钮 */}
+                            <div className="flex items-center gap-1.5 mt-1 ml-1 flex-wrap">
+                              {m.hasThinking && <span className="text-[9px] px-1 py-0.5 rounded bg-green-50 text-green-600 border border-green-200">思考</span>}
+                              {m.hasVision && <span className="text-[9px] px-1 py-0.5 rounded bg-purple-50 text-purple-600 border border-purple-200">视觉</span>}
+                              {m.audioCapable && <span className="text-[9px] px-1 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">音频</span>}
+                              <ModelCapabilityTester
                                 config={config}
                                 model={m}
-                                onResult={(ok, msg) => {
-                                  updateModelInConfig(config.id, m.id, { hasThinking: ok })
-                                  setModelTestMsg({ text: msg, type: ok ? 'success' : 'error' })
+                                onResult={(result, msg) => {
+                                  updateModelInConfig(config.id, m.id, result)
+                                  setModelTestMsg({ text: msg, type: (result.hasThinking || result.hasVision || result.audioCapable) ? 'success' : 'info' })
                                 }}
                               />
-                              {m.hasThinking && (
-                                <span className="text-[10px] text-green-600">已标记支持思考</span>
-                              )}
                             </div>
                           </div>
                         ))}
@@ -559,9 +579,9 @@ export default function ApiSettings() {
       {modelTestMsg && (
         <div
           className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg text-sm z-50 transition-all ${
-            modelTestMsg.type === 'success'
-              ? 'bg-green-50 text-green-700 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
+            modelTestMsg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200'
+            : modelTestMsg.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200'
+            : 'bg-gray-800 text-white'
           }`}
         >
           {modelTestMsg.text}
