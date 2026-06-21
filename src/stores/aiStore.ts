@@ -25,6 +25,7 @@ export interface AiSession {
   chatState: 'idle' | 'thinking' | 'streaming' | 'error'
   streamingText: string
   thinkingText: string
+  statusText: string  // 状态提示：正在分析图片、正在深入思考等
   error: string | null
   createdAt: number
   updatedAt: number
@@ -47,6 +48,7 @@ interface AiState {
   sendMessage: (content: string, screenshotData?: string | string[]) => Promise<void>
   stopGeneration: () => void
   clearError: (sessionId: string) => void
+  setStatus: (text: string) => void
 
   addPendingScreenshot: (data: string) => void
   removePendingScreenshot: (index: number) => void
@@ -108,6 +110,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       chatState: 'idle',
       streamingText: '',
       thinkingText: '',
+      statusText: '',
       error: null,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -164,6 +167,7 @@ export const useAiStore = create<AiState>((set, get) => ({
     const screenshots = Array.isArray(screenshotData) ? screenshotData : screenshotData ? [screenshotData] : []
     const subjectStore = useSubjectStore.getState()
     const settingsStore = useSettingsStore.getState()
+    const { thinkingMode } = get()
 
     let subjectId = subjectStore.currentSubjectId
     if (!subjectId) {
@@ -210,6 +214,7 @@ export const useAiStore = create<AiState>((set, get) => ({
             chatState: 'thinking',
             streamingText: '',
       thinkingText: '',
+      statusText: screenshots.length > 0 ? '正在分析图片...' : (thinkingMode ? '正在深入思考...' : '正在思考...'),
             error: null,
             name: session.messages.length === 0 ? generateSessionName(content) : session.name,
             updatedAt: Date.now(),
@@ -363,7 +368,6 @@ export const useAiStore = create<AiState>((set, get) => ({
       controller = new AbortController()
       set({ abortController: controller })
 
-      const { thinkingMode } = get()
       const body: Record<string, unknown> = {
         model: model.modelId,
         messages: apiMessages,
@@ -407,10 +411,12 @@ export const useAiStore = create<AiState>((set, get) => ({
         set((state) => {
           const s = state.sessions[activeSessionId!]
           if (!s) return state
+          // 如果正在思考中且还没开始流式输出，更新状态
+          const newStatus = fullThinkingText && !fullText ? '正在深入思考...' : (fullText ? '' : s.statusText)
           return {
             sessions: {
               ...state.sessions,
-              [activeSessionId!]: { ...s, chatState: 'streaming', streamingText: fullText, thinkingText: fullThinkingText },
+              [activeSessionId!]: { ...s, chatState: 'streaming', streamingText: fullText, thinkingText: fullThinkingText, statusText: newStatus },
             },
           }
         })
@@ -482,6 +488,7 @@ export const useAiStore = create<AiState>((set, get) => ({
               chatState: 'idle',
               streamingText: '',
       thinkingText: '',
+      statusText: '',
               updatedAt: Date.now(),
             },
           },
@@ -497,7 +504,7 @@ export const useAiStore = create<AiState>((set, get) => ({
           return {
             sessions: {
               ...state.sessions,
-              [activeSessionId!]: { ...s, chatState: 'idle', streamingText: '', thinkingText: '' },
+              [activeSessionId!]: { ...s, chatState: 'idle', streamingText: '', thinkingText: '', statusText: '' },
             },
             // Only clear controller if it's still ours (not replaced by a newer send)
             abortController: state.abortController === controller ? null : state.abortController,
@@ -563,6 +570,7 @@ export const useAiStore = create<AiState>((set, get) => ({
               chatState: 'idle',
               streamingText: '',
       thinkingText: '',
+      statusText: '',
               contextWindow: [...session.contextWindow, completedMessage],
             },
           },
@@ -589,6 +597,7 @@ export const useAiStore = create<AiState>((set, get) => ({
               chatState: 'idle',
               streamingText: '',
       thinkingText: '',
+      statusText: '',
               contextWindow: [...session.contextWindow, partialMessage],
             },
           },
@@ -599,7 +608,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       return {
         sessions: {
           ...state.sessions,
-          [activeSessionId]: { ...session, chatState: 'idle', streamingText: '', thinkingText: '' },
+          [activeSessionId]: { ...session, chatState: 'idle', streamingText: '', thinkingText: '', statusText: '' },
         },
       }
     })
@@ -631,6 +640,20 @@ export const useAiStore = create<AiState>((set, get) => ({
   clearPendingScreenshots: () => set({ pendingScreenshots: [] }),
   setThinkingMode: (on) => set({ thinkingMode: on }),
   setMessageDropped: (v) => set({ messageDropped: v }),
+  setStatus: (text) => {
+    const { activeSessionId } = get()
+    if (!activeSessionId) return
+    set((state) => {
+      const s = state.sessions[activeSessionId]
+      if (!s) return state
+      return {
+        sessions: {
+          ...state.sessions,
+          [activeSessionId]: { ...s, statusText: text },
+        },
+      }
+    })
+  },
 
   loadFromStorage: () => {
     try {
@@ -651,6 +674,7 @@ export const useAiStore = create<AiState>((set, get) => ({
             chatState: 'idle',
             streamingText: '',
       thinkingText: '',
+      statusText: '',
             error: null,
             createdAt: Number(s.createdAt) || Date.now(),
             updatedAt: Number(s.updatedAt) || Date.now(),
@@ -674,7 +698,7 @@ export const useAiStore = create<AiState>((set, get) => ({
       for (const [id, session] of Object.entries(sessions)) {
         // 流式中的会话保存为 idle，避免丢失
         const base = session.chatState === 'streaming' || session.chatState === 'thinking'
-          ? { ...session, chatState: 'idle' as const, streamingText: '', thinkingText: '' }
+          ? { ...session, chatState: 'idle' as const, streamingText: '', thinkingText: '', statusText: '' }
           : session
         // contextWindow 中的截图已在 messages 中保存，去掉避免 localStorage 双倍占用
         saveableSessions[id] = {

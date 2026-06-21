@@ -38,18 +38,6 @@ const ChatMessage = React.memo(function ChatMessage({ message, isStreaming }: Ch
             : 'bg-white text-gray-800 border border-gray-200'
         }`}
       >
-        {/* 思考过程（仅 AI 消息） */}
-        {!isUser && message.thinkingContent && (
-          <details className="mb-2">
-            <summary className="text-xs text-purple-500 cursor-pointer hover:text-purple-600 select-none">
-              查看思考过程
-            </summary>
-            <div className="mt-1 p-2 bg-purple-50 rounded text-xs text-gray-600 whitespace-pre-wrap max-h-48 overflow-y-auto">
-              {message.thinkingContent}
-            </div>
-          </details>
-        )}
-
         {hasValidScreenshot && (
           <div className="mb-2">
             <img

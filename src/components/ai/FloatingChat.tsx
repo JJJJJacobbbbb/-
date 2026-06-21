@@ -6,6 +6,7 @@ import SubjectPicker from './SubjectPicker'
 import SessionControls from './SessionControls'
 import ChatInput from './ChatInput'
 import ChatMessage from './ChatMessage'
+import ThinkingDisplay from './ThinkingDisplay'
 import ConfirmDialog from '../shared/ConfirmDialog'
 import { useClickOutside } from '../../hooks/useClickOutside'
 import { useAutoScroll } from '../../hooks/useAutoScroll'
@@ -272,25 +273,40 @@ export default function FloatingChat() {
               </div>
             ))}
 
-            {session?.chatState === 'streaming' && session.streamingText && (
-              <ChatMessage
-                message={{
-                  id: 'streaming',
-                  role: 'assistant',
-                  content: session.streamingText,
-                  timestamp: Date.now(),
-                  type: 'text',
-                  thinkingContent: session.thinkingText || undefined,
-                }}
-                isStreaming
-              />
+            {session?.chatState === 'streaming' && (
+              <div>
+                {session.thinkingText && (
+                  <ThinkingDisplay text={session.thinkingText} isStreaming={true} statusText={session.statusText} />
+                )}
+                {session.streamingText && (
+                  <ChatMessage
+                    message={{
+                      id: 'streaming',
+                      role: 'assistant',
+                      content: session.streamingText,
+                      timestamp: Date.now(),
+                      type: 'text',
+                    }}
+                    isStreaming
+                  />
+                )}
+                {!session.streamingText && session.statusText && (
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse" />
+                    <span className="text-sm">{session.statusText}</span>
+                  </div>
+                )}
+              </div>
             )}
 
             {session?.chatState === 'thinking' && (
               <div className="flex items-center gap-2 text-gray-500">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                {session.statusText && (
+                  <span className="text-sm ml-1">{session.statusText}</span>
+                )}
               </div>
             )}
 
