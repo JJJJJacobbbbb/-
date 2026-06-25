@@ -66,6 +66,13 @@ export default function ChatInput({ screenshotMode = 'toggle' }: ChatInputProps 
   // 保持 ref 与 state 同步，避免 toggleRecording 闭包过期
   useEffect(() => { isRecordingRef.current = isRecording }, [isRecording])
 
+  // 语音错误 3 秒后自动消失
+  useEffect(() => {
+    if (!voiceError) return
+    const t = setTimeout(() => setVoiceError(null), 3000)
+    return () => clearTimeout(t)
+  }, [voiceError])
+
   // 监听外部设置输入内容的自定义事件（用于 starter prompts）
   useEffect(() => {
     const handler = (e: Event) => {
@@ -350,7 +357,6 @@ export default function ChatInput({ screenshotMode = 'toggle' }: ChatInputProps 
 
           {isRecording && <span className="text-xs text-red-500 animate-pulse ml-1">录音中...</span>}
           {isTranscribing && !isRecording && <span className="text-xs text-yellow-600 ml-1">识别中...</span>}
-          {voiceError && <span className="text-xs text-red-500 ml-1">{voiceError}</span>}
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -407,12 +413,14 @@ export default function ChatInput({ screenshotMode = 'toggle' }: ChatInputProps 
                 ? 'bg-red-500 text-white animate-pulse'
                 : isTranscribing
                   ? 'bg-yellow-500 text-white animate-pulse'
-                  : voiceDisabled
-                    ? 'text-gray-300'
-                    : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                  : voiceError
+                    ? 'text-red-400 ring-1 ring-red-300'
+                    : voiceDisabled
+                      ? 'text-gray-300'
+                      : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
             }`}
-            title={isRecording ? '停止录音' : isTranscribing ? '识别中...' : voiceDisabled ? '需在设置中标记音频模型' : '语音输入'}
-            aria-label={isRecording ? '停止录音' : isTranscribing ? '识别中...' : voiceDisabled ? '需在设置中标记音频模型' : '语音输入'}
+            title={voiceError || isRecording ? '停止录音' : isTranscribing ? '识别中...' : voiceDisabled ? '需在设置中标记音频模型' : '语音输入'}
+            aria-label={voiceError || isRecording ? '停止录音' : isTranscribing ? '识别中...' : voiceDisabled ? '需在设置中标记音频模型' : '语音输入'}
           >
             {isTranscribing ? (
               <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">

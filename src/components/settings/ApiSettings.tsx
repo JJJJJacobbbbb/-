@@ -181,6 +181,7 @@ export default function ApiSettings() {
             hasVision: pm.hasVision,
             maxContextTokens: pm.maxContextTokens,
             hasThinking: pm.hasThinking,
+            audioCapable: pm.audioCapable,
           })
         }
       }
