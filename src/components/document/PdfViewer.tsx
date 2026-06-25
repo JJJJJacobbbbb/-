@@ -35,14 +35,19 @@ export default function PdfViewer({ content }: PdfViewerProps) {
 
   useEffect(() => {
     measure()
-    // 轮询检测容器尺寸变化，确保 Electron 全屏切换时也能跟随
-    const interval = setInterval(() => {
-      if (containerRef.current) {
-        const w = containerRef.current.clientWidth
-        if (w > 0) setBaseWidth(w)
-      }
-    }, 500)
-    return () => clearInterval(interval)
+    const onResize = () => requestAnimationFrame(measure)
+    window.addEventListener('resize', onResize)
+
+    let ro: ResizeObserver | null = null
+    if (containerRef.current) {
+      ro = new ResizeObserver(onResize)
+      ro.observe(containerRef.current)
+    }
+
+    return () => {
+      window.removeEventListener('resize', onResize)
+      ro?.disconnect()
+    }
   }, [measure])
 
   // 加载 PDF 并获取页信息（不渲染）
