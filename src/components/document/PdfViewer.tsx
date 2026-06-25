@@ -35,11 +35,8 @@ export default function PdfViewer({ content }: PdfViewerProps) {
 
   useEffect(() => {
     measure()
-    const el = containerRef.current
-    if (!el) return
-    const ro = new ResizeObserver(() => measure())
-    ro.observe(el)
-    return () => ro.disconnect()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
   }, [measure])
 
   // 加载 PDF 并获取页信息（不渲染）
