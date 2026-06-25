@@ -419,8 +419,8 @@ export default function ChatInput({ screenshotMode = 'toggle' }: ChatInputProps 
                       ? 'text-gray-300'
                       : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
             }`}
-            title={voiceError || isRecording ? '停止录音' : isTranscribing ? '识别中...' : voiceDisabled ? '需在设置中标记音频模型' : '语音输入'}
-            aria-label={voiceError || isRecording ? '停止录音' : isTranscribing ? '识别中...' : voiceDisabled ? '需在设置中标记音频模型' : '语音输入'}
+            title={voiceError || isRecording ? '停止录音' : isTranscribing ? '识别中...' : voiceDisabled ? '需在设置中标记语音模型' : '语音输入'}
+            aria-label={voiceError || isRecording ? '停止录音' : isTranscribing ? '识别中...' : voiceDisabled ? '需在设置中标记语音模型' : '语音输入'}
           >
             {isTranscribing ? (
               <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">

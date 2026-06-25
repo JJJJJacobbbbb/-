@@ -1,13 +1,8 @@
 /**
- * 语音识别 — 使用配置的 API 进行语音转文字
- * 通过 OpenAI 兼容的 /audio/transcriptions 端点
+ * 语音识别 — 通过多模态模型的 chat/completions 接口进行语音转文字
  */
 
 import { useSettingsStore } from '../stores/settingsStore'
-
-function getAudioApiUrl(chatApiUrl: string): string {
-  return chatApiUrl.replace(/\/chat\/completions\/?$/, '/audio/transcriptions')
-}
 
 function getAudioModelInfo() {
   const settings = useSettingsStore.getState()
@@ -18,39 +13,64 @@ function getAudioModelInfo() {
   return null
 }
 
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      resolve(dataUrl.split(',')[1]) // 去掉 data:...;base64, 前缀
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
 /**
- * 将音频 Blob 发送到 API 进行识别
+ * 将音频发送到多模态模型进行识别
  */
-export async function transcribe(audioBlob: Blob, language = 'zh'): Promise<string> {
+export async function transcribe(audioBlob: Blob): Promise<string> {
   const modelInfo = getAudioModelInfo()
   if (!modelInfo) {
-    throw new Error('请先在设置中标记一个支持音频的模型')
+    throw new Error('请先在设置中标记一个支持语音输入的模型')
   }
 
-  const formData = new FormData()
-  formData.append('file', audioBlob, 'recording.webm')
-  formData.append('model', modelInfo.model.modelId)
-  formData.append('language', language)
-  formData.append('response_format', 'json')
+  const base64 = await blobToBase64(audioBlob)
+  const mimeType = audioBlob.type || 'audio/webm'
+  const format = mimeType.includes('wav') ? 'wav' : mimeType.includes('mp3') ? 'mp3' : 'wav'
 
-  const response = await fetch(getAudioApiUrl(modelInfo.config.apiUrl), {
+  let apiUrl = modelInfo.config.apiUrl.trim()
+  if (!/\/chat\/completions\/?$/.test(apiUrl)) {
+    apiUrl = apiUrl.replace(/\/$/, '') + '/chat/completions'
+  }
+
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
+      'Content-Type': 'application/json',
       Authorization: `Bearer ${modelInfo.config.apiKey}`,
     },
-    body: formData,
+    body: JSON.stringify({
+      model: modelInfo.model.modelId,
+      messages: [
+        { role: 'system', content: '你是一个语音转文字助手。请准确转写用户发送的语音内容，只输出转写结果，不要添加任何解释。' },
+        {
+          role: 'user',
+          content: [
+            { type: 'input_audio', input_audio: { data: base64, format } },
+          ],
+        },
+      ],
+      max_tokens: 4096,
+    }),
   })
 
   if (!response.ok) {
     const errText = await response.text().catch(() => '')
-    if (response.status === 404) {
-      throw new Error('当前 API 不支持语音转文字功能（/audio/transcriptions 端点不存在）')
-    }
     throw new Error(`语音识别请求失败 (${response.status}): ${errText.slice(0, 100)}`)
   }
 
   const result = await response.json()
-  return (result.text || '').trim()
+  return (result.choices?.[0]?.message?.content || '').trim()
 }
 
 /**

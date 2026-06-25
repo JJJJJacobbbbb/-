@@ -439,7 +439,7 @@ export default function ApiSettings() {
                                     : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-100 hover:text-gray-600'
                                 }`}
                               >
-                                音频
+                                语音
                               </button>
                               <button
                                 onClick={async () => {
