@@ -438,6 +438,7 @@ export default function ApiSettings() {
                                     ? 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200'
                                     : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-100 hover:text-gray-600'
                                 }`}
+                                title="标记后可用此模型进行语音输入（需模型支持音频理解）"
                               >
                                 语音
                               </button>

@@ -25,6 +25,14 @@ function blobToBase64(blob: Blob): Promise<string> {
   })
 }
 
+function getAudioFormat(mimeType: string): string {
+  if (mimeType.includes('wav')) return 'wav'
+  if (mimeType.includes('mp3')) return 'mp3'
+  if (mimeType.includes('webm')) return 'webm'
+  if (mimeType.includes('ogg')) return 'ogg'
+  return 'wav'
+}
+
 /**
  * 将音频发送到多模态模型进行识别
  */
@@ -35,8 +43,7 @@ export async function transcribe(audioBlob: Blob): Promise<string> {
   }
 
   const base64 = await blobToBase64(audioBlob)
-  const mimeType = audioBlob.type || 'audio/webm'
-  const format = mimeType.includes('wav') ? 'wav' : mimeType.includes('mp3') ? 'mp3' : 'wav'
+  const format = getAudioFormat(audioBlob.type)
 
   let apiUrl = modelInfo.config.apiUrl.trim()
   if (!/\/chat\/completions\/?$/.test(apiUrl)) {
