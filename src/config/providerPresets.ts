@@ -6,7 +6,6 @@ export interface PresetModel {
   hasVision: boolean
   maxContextTokens: number
   hasThinking?: boolean
-  audioCapable?: boolean
 }
 
 export interface ProviderPreset {
@@ -22,8 +21,8 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     name: 'OpenAI',
     apiUrl: 'https://api.openai.com/v1/chat/completions',
     models: [
-      { name: 'GPT-4o', modelId: 'gpt-4o', hasVision: true, maxContextTokens: 128000, audioCapable: true },
-      { name: 'GPT-4o mini', modelId: 'gpt-4o-mini', hasVision: true, maxContextTokens: 128000, audioCapable: true },
+      { name: 'GPT-4o', modelId: 'gpt-4o', hasVision: true, maxContextTokens: 128000 },
+      { name: 'GPT-4o mini', modelId: 'gpt-4o-mini', hasVision: true, maxContextTokens: 128000 },
     ],
     category: 'official',
   },
