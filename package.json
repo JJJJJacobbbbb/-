@@ -27,8 +27,7 @@
       "createStartMenuShortcut": true,
       "shortcutName": "问渠",
       "installerIcon": "resources/wenqu.ico",
-      "uninstallerIcon": "resources/wenqu.ico",
-      "installDir": "wenqu"
+      "uninstallerIcon": "resources/wenqu.ico"
     },
     "win": {
       "target": ["nsis", "portable"],
